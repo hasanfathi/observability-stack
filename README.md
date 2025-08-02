@@ -29,5 +29,9 @@ This repository provides a ready-to-run, containerized observability stack using
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/observability-stack.git
+git clone https://github.com/hasanfathi/observability-stack.git
 cd observability-stack
+### ✅ Step 2: Start the Observability Stack
+
+```bash
+docker-compose up -d
