@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------
+  # Grafana - Web UI for metrics, traces, and logs
+  # Accessible at: http://localhost:3000
+  # Default credentials: admin / admin
+  # ----------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - 3000:3000  # Web UI
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - tempo
+      - otel-collector
+    networks:
+      observability_net:
+        ipv4_address: 192.168.1.10
+
+  # ----------------------------------------
+  # Tempo - Distributed tracing backend
+  # Port 3200: HTTP API (e.g., Grafana queries)
+  # Port 4317: OTLP gRPC traces input
+  # ----------------------------------------
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command:
+      - -config.file=/etc/tempo.yaml
+    ports:
+      - 3200:3200    # Tempo query API
+      - 4317:4317    # OTLP gRPC input for traces
+    environment:
+      - TEMPO_REPORTING_ENABLED=false
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+    networks:
+      observability_net:
+        ipv4_address: 192.168.1.9
+
+  # ----------------------------------------
+  # Prometheus - Metrics scraping and storage
+  # Accessible at: http://localhost:9090
+  # ----------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - 9090:9090  # Prometheus UI
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
+    networks:
+      observability_net:
+        ipv4_address: 192.168.1.7
+
+  # ----------------------------------------
+  # Loki - Log aggregation system
+  # Accessible at: http://localhost:3100 (API only, use Grafana to view)
+  # ----------------------------------------
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - 3100:3100  # Loki HTTP API for logs
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    networks:
+      observability_net:
+        ipv4_address: 192.168.1.6
+
+  # ----------------------------------------
+  # OpenTelemetry Collector - Collects traces, metrics, and logs
+  # Port 4318: OTLP HTTP input for traces/logs/metrics
+  # Port 14317: Prometheus exporter for internal metrics
+  # ----------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command:
+      - --config=/etc/otel-collector-config.yaml
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - 4318:4318   # OTLP HTTP receiver
+      - 14317:14317 # Prometheus metrics exporter (scraped by Prometheus)
+    depends_on:
+      - tempo
+    networks:
+      observability_net:
+        ipv4_address: 192.168.1.8
+
+# ----------------------------------------
+# Persistent volume for Grafana data
+# ----------------------------------------
+volumes:
+  grafana-storage: null
+
+# ----------------------------------------
+# Custom network for observability stack with fixed IPs
+# ----------------------------------------
+networks:
+  observability_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+

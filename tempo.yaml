@@ -1,0 +1,25 @@
+server:
+  http_listen_port: 3200       # Tempo's HTTP query and metrics endpoint (Grafana uses this)
+  log_level: info              # Logging level (can be debug/info/warn/error)
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317  # Accept OTLP gRPC traces (from OTEL Collector)
+
+ingester:
+  trace_idle_period: 10s         # Flush a trace if no spans received in this time
+  max_block_duration: 5m         # Max time to buffer data before flushing
+
+compactor:
+  compaction:
+    block_retention: 1h          # Keep blocks for 1 hour before deletion (for local dev)
+
+storage:
+  trace:
+    backend: local               # Use local disk storage (suitable for dev/demo)
+    local:
+      path: /tmp/tempo/traces    # Path inside container for storing traces
+

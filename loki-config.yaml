@@ -1,0 +1,56 @@
+# Disable authentication for simplicity (not recommended for production)
+auth_enabled: false
+
+# Loki HTTP API server configuration
+server:
+  http_listen_port: 3100  # This must match the exposed port in docker-compose
+
+# Ingestion settings - handles how Loki writes incoming logs
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory  # Use in-memory KV store for ring management
+      replication_factor: 1  # Single-node setup
+  chunk_idle_period: 3m       # How long to wait before flushing inactive chunks
+  max_chunk_age: 1h           # Max age of a chunk before it's flushed
+  chunk_retain_period: 30s    # Time to retain chunk after flushing
+  wal:
+    enabled: true
+    dir: /tmp/wal             # Write-ahead log directory (used for durability)
+
+# Schema configuration - defines how logs are indexed
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper           # Index type
+      object_store: filesystem        # Chunk storage type
+      schema: v11                     # Loki's schema version
+      index:
+        prefix: index_                # Prefix for index files
+        period: 24h                   # One index per day
+
+# Storage configuration - where chunks and indexes are stored
+storage_config:
+  boltdb_shipper:
+    active_index_directory: /tmp/loki/index         # Index storage location
+    cache_location: /tmp/loki/boltdb-cache          # Cache for index
+    shared_store: filesystem
+  filesystem:
+    directory: /tmp/loki/chunks                    # Log chunks storage path
+
+# Limits on log ingestion and retention
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h  # 7 days
+
+# Configure how far back Loki can look for logs
+chunk_store_config:
+  max_look_back_period: 0s  # Unlimited lookback (0s disables limit)
+
+# Table manager settings - handles log retention/deletion
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 168h  # Retain logs for 7 days (168 hours)
+

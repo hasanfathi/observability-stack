@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s  # How often Prometheus scrapes targets by default
+
+scrape_configs:
+  # Scrape OpenTelemetry Collector internal metrics
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:14317']  # Matches the port exposed in docker-compose
+
