@@ -1,56 +1,46 @@
-# Disable authentication for simplicity (not recommended for production)
-auth_enabled: false
+auth_enabled: false  # Disable auth for simplicity (not recommended for production)
 
-# Loki HTTP API server configuration
 server:
-  http_listen_port: 3100  # This must match the exposed port in docker-compose
+  http_listen_port: 3100  # Loki HTTP API port
 
-# Ingestion settings - handles how Loki writes incoming logs
 ingester:
   lifecycler:
     ring:
       kvstore:
-        store: inmemory  # Use in-memory KV store for ring management
-      replication_factor: 1  # Single-node setup
-  chunk_idle_period: 3m       # How long to wait before flushing inactive chunks
-  max_chunk_age: 1h           # Max age of a chunk before it's flushed
-  chunk_retain_period: 30s    # Time to retain chunk after flushing
+        store: inmemory  # In-memory ring store (single instance setup)
+      replication_factor: 1  # No replication (single instance)
+  chunk_idle_period: 3m  # Time after which idle chunks are flushed
+  max_chunk_age: 1h  # Max chunk lifetime before forced flush
+  chunk_retain_period: 30s  # Retain chunks after flush for queries
   wal:
-    enabled: true
-    dir: /tmp/wal             # Write-ahead log directory (used for durability)
+    enabled: true  # Enable Write Ahead Log for durability
+    dir: /tmp/wal  # WAL directory (ensure writable)
 
-# Schema configuration - defines how logs are indexed
 schema_config:
   configs:
     - from: 2020-10-24
-      store: boltdb-shipper           # Index type
-      object_store: filesystem        # Chunk storage type
-      schema: v11                     # Loki's schema version
+      store: boltdb-shipper  # Use boltdb-shipper index type
+      object_store: filesystem  # Store chunks locally on filesystem
+      schema: v11  # Schema version, must match limits_config settings
       index:
-        prefix: index_                # Prefix for index files
-        period: 24h                   # One index per day
+        prefix: index_  # Prefix for index files
+        period: 24h  # Index file rotation period
 
-# Storage configuration - where chunks and indexes are stored
 storage_config:
   boltdb_shipper:
-    active_index_directory: /tmp/loki/index         # Index storage location
-    cache_location: /tmp/loki/boltdb-cache          # Cache for index
-    shared_store: filesystem
+    active_index_directory: /tmp/loki/index  # Index storage directory
+    cache_location: /tmp/loki/boltdb-cache  # BoltDB cache location
   filesystem:
-    directory: /tmp/loki/chunks                    # Log chunks storage path
+    directory: /tmp/loki/chunks  # Chunk storage directory
 
-# Limits on log ingestion and retention
 limits_config:
-  enforce_metric_name: false
-  reject_old_samples: true
-  reject_old_samples_max_age: 168h  # 7 days
+  reject_old_samples: true  # Reject samples older than max age
+  reject_old_samples_max_age: 168h  # Max age for samples to accept (7 days)
+  allow_structured_metadata: false  # Disable structured metadata for v11 schema
 
-# Configure how far back Loki can look for logs
-chunk_store_config:
-  max_look_back_period: 0s  # Unlimited lookback (0s disables limit)
+compactor:
+  working_directory: /tmp/loki/compactor  # Must be writable dir to avoid permission errors
 
-# Table manager settings - handles log retention/deletion
 table_manager:
-  retention_deletes_enabled: true
-  retention_period: 168h  # Retain logs for 7 days (168 hours)
-
+  retention_deletes_enabled: true  # Enable retention-based deletes
+  retention_period: 168h  # Retention period for data (7 days)
